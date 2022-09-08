@@ -17,8 +17,6 @@ import (
 	"github.com/go-logr/logr"
 )
 
-const ContextKey = "ginlogr.logger"
-
 // Ginlogr returns a gin.HandlerFunc (middleware) that logs requests using github.com/go-logr/logr.
 //
 // Requests with errors are logged using logr.Error().
@@ -33,7 +31,7 @@ func Ginlogr(logger logr.Logger, timeFormat string, utc bool) gin.HandlerFunc {
 		// some evil middlewares modify this values
 		path := c.Request.URL.Path
 		query := c.Request.URL.RawQuery
-		c.Set(ContextKey, logger)
+		c.Request.WithContext(logr.NewContext(c.Request.Context(), logger))
 		c.Next()
 
 		end := time.Now()
