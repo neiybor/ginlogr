@@ -106,7 +106,7 @@ func RecoveryWithLogr(logger logr.Logger, timeFormat string, utc, stack bool) gi
 					logger.Error(e, "[Recovery from panic]",
 						"time", time.Format(timeFormat),
 						"request", string(httpRequest),
-						"stack", string(debug.Stack()),
+						"stack", strings.Split("\n", string(debug.Stack())),
 					)
 				default:
 					logger.Error(e, "[Recovery from panic]",
