@@ -31,7 +31,7 @@ func Ginlogr(logger logr.Logger, timeFormat string, utc bool) gin.HandlerFunc {
 		// some evil middlewares modify this values
 		path := c.Request.URL.Path
 		query := c.Request.URL.RawQuery
-		c.Request.WithContext(logr.NewContext(c.Request.Context(), logger))
+		c.Request = c.Request.Clone(logr.NewContext(c.Request.Context(), logger))
 		c.Next()
 
 		end := time.Now()
