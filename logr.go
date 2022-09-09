@@ -25,14 +25,18 @@ import (
 // It receives:
 //   1. A time package format string (e.g. time.RFC3339).
 //   2. A boolean stating whether to use UTC time zone or local.
-func Ginlogr(logger logr.Logger, timeFormat string, utc, addToReqContext bool) gin.HandlerFunc {
+func Ginlogr(logger logr.Logger, timeFormat string, utc, addToReqContext bool, withHeaders []string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		start := time.Now()
 		// some evil middlewares modify this values
 		path := c.Request.URL.Path
 		query := c.Request.URL.RawQuery
+		reqLogger := logger
+		for _, headerKey := range withHeaders {
+			reqLogger = reqLogger.WithValues(headerKey, c.GetHeader(headerKey))
+		}
 		if addToReqContext {
-			c.Request = c.Request.Clone(logr.NewContext(c.Request.Context(), logger))
+			c.Request = c.Request.Clone(logr.NewContext(c.Request.Context(), reqLogger))
 		}
 		c.Next()
 
@@ -45,10 +49,10 @@ func Ginlogr(logger logr.Logger, timeFormat string, utc, addToReqContext bool) g
 		if len(c.Errors) > 0 {
 			// Append error field if this is an erroneous request.
 			for _, e := range c.Errors.Errors() {
-				logger.Error(errors.New(e), "Error")
+				reqLogger.Error(errors.New(e), "Error")
 			}
 		} else {
-			logger.Info(path,
+			reqLogger.Info(path,
 				"status", c.Writer.Status(),
 				"method", c.Request.Method,
 				"path", path,
@@ -76,6 +80,11 @@ func RecoveryWithLogr(logger logr.Logger, timeFormat string, utc, stack bool) gi
 					time = time.UTC()
 				}
 
+				reqLogger := logger
+				if lgr, err := logr.FromContext(c); err == nil {
+					reqLogger = lgr
+				}
+
 				// Check for a broken connection, as it is not really a
 				// condition that warrants a panic stack trace.
 				var brokenPipe bool
@@ -97,7 +106,7 @@ func RecoveryWithLogr(logger logr.Logger, timeFormat string, utc, stack bool) gi
 
 				switch {
 				case brokenPipe:
-					logger.Error(err.(*os.SyscallError), c.Request.URL.Path,
+					reqLogger.Error(err.(*os.SyscallError), c.Request.URL.Path,
 						"time", time.Format(timeFormat),
 						"request", string(httpRequest),
 					)
@@ -106,13 +115,13 @@ func RecoveryWithLogr(logger logr.Logger, timeFormat string, utc, stack bool) gi
 					c.Abort()
 					return
 				case stack:
-					logger.Error(e, "[Recovery from panic]",
+					reqLogger.Error(e, "[Recovery from panic]",
 						"time", time.Format(timeFormat),
 						"request", string(httpRequest),
 						"stack", strings.Split("\n", string(debug.Stack())),
 					)
 				default:
-					logger.Error(e, "[Recovery from panic]",
+					reqLogger.Error(e, "[Recovery from panic]",
 						"time", time.Format(timeFormat),
 						"request", string(httpRequest),
 					)
