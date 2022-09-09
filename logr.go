@@ -23,8 +23,8 @@ import (
 // Requests without errors are logged using logr.Info().
 //
 // It receives:
-//   1. A time package format string (e.g. time.RFC3339).
-//   2. A boolean stating whether to use UTC time zone or local.
+//  1. A time package format string (e.g. time.RFC3339).
+//  2. A boolean stating whether to use UTC time zone or local.
 func Ginlogr(logger logr.Logger, timeFormat string, utc, addToReqContext bool, withHeaders []string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		start := time.Now()
@@ -118,7 +118,7 @@ func RecoveryWithLogr(logger logr.Logger, timeFormat string, utc, stack bool) gi
 					reqLogger.Error(e, "[Recovery from panic]",
 						"time", time.Format(timeFormat),
 						"request", string(httpRequest),
-						"stack", strings.Split("\n", string(debug.Stack())),
+						"stack", strings.Split("\n", strings.ReplaceAll(string(debug.Stack()), "\t", "")),
 					)
 				default:
 					reqLogger.Error(e, "[Recovery from panic]",
