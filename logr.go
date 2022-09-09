@@ -25,13 +25,15 @@ import (
 // It receives:
 //   1. A time package format string (e.g. time.RFC3339).
 //   2. A boolean stating whether to use UTC time zone or local.
-func Ginlogr(logger logr.Logger, timeFormat string, utc bool) gin.HandlerFunc {
+func Ginlogr(logger logr.Logger, timeFormat string, utc, addToReqContext bool) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		start := time.Now()
 		// some evil middlewares modify this values
 		path := c.Request.URL.Path
 		query := c.Request.URL.RawQuery
-		c.Request = c.Request.Clone(logr.NewContext(c.Request.Context(), logger))
+		if addToReqContext {
+			c.Request = c.Request.Clone(logr.NewContext(c.Request.Context(), logger))
+		}
 		c.Next()
 
 		end := time.Now()
