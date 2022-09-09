@@ -33,7 +33,7 @@ func Ginlogr(logger logr.Logger, timeFormat string, utc, addToReqContext bool, w
 		query := c.Request.URL.RawQuery
 		reqLogger := logger
 		for _, headerKey := range withHeaders {
-			reqLogger = reqLogger.WithValues(headerKey, c.GetHeader(headerKey))
+			reqLogger = reqLogger.WithValues(headerKey, c.Writer.Header().Get(headerKey))
 		}
 		if addToReqContext {
 			c.Request = c.Request.Clone(logr.NewContext(c.Request.Context(), reqLogger))
