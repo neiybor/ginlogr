@@ -52,8 +52,8 @@ func Ginlogr(logger logr.Logger, timeFormat string, utc, addToReqContext bool, w
 
 		if len(c.Errors) > 0 {
 			// Append error field if this is an erroneous request.
-			for _, e := range c.Errors.Errors() {
-				reqLogger.Error(errors.New(e), "Error")
+			for _, e := range c.Errors {
+				reqLogger.Error(e.Err, "Error")
 			}
 		} else {
 			reqLogger.Info(path,
