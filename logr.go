@@ -3,7 +3,6 @@
 package ginlogr
 
 import (
-	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -15,7 +14,12 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-logr/logr"
+	"github.com/pkg/errors"
 )
+
+type stackTracer interface {
+	StackTrace() errors.StackTrace
+}
 
 // Ginlogr returns a gin.HandlerFunc (middleware) that logs requests using github.com/go-logr/logr.
 //
@@ -23,8 +27,8 @@ import (
 // Requests without errors are logged using logr.Info().
 //
 // It receives:
-//   1. A time package format string (e.g. time.RFC3339).
-//   2. A boolean stating whether to use UTC time zone or local.
+//  1. A time package format string (e.g. time.RFC3339).
+//  2. A boolean stating whether to use UTC time zone or local.
 func Ginlogr(logger logr.Logger, timeFormat string, utc, addToReqContext bool, withHeaders []string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		start := time.Now()
@@ -48,8 +52,8 @@ func Ginlogr(logger logr.Logger, timeFormat string, utc, addToReqContext bool, w
 
 		if len(c.Errors) > 0 {
 			// Append error field if this is an erroneous request.
-			for _, e := range c.Errors.Errors() {
-				reqLogger.Error(errors.New(e), "Error")
+			for _, e := range c.Errors {
+				reqLogger.Error(e.Err, "Error")
 			}
 		} else {
 			reqLogger.Info(path,
@@ -115,10 +119,21 @@ func RecoveryWithLogr(logger logr.Logger, timeFormat string, utc, stack bool) gi
 					c.Abort()
 					return
 				case stack:
+					var stackErr stackTracer
+					var stackTrace []string
+					if stackErr, ok = e.(stackTracer); ok {
+						stackTrace = make([]string, len(stackErr.StackTrace()))
+						for i, f := range stackErr.StackTrace() {
+							stackTrace[i] = fmt.Sprintf("%+s:%d\n", f, f)
+						}
+					} else {
+						stackTrace = strings.Split("\n", strings.ReplaceAll(string(debug.Stack()), "\t", ""))
+					}
+
 					reqLogger.Error(e, "[Recovery from panic]",
 						"time", time.Format(timeFormat),
 						"request", string(httpRequest),
-						"stack", strings.Split("\n", string(debug.Stack())),
+						"stack", stackTrace,
 					)
 				default:
 					reqLogger.Error(e, "[Recovery from panic]",
