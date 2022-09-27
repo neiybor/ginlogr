@@ -55,18 +55,17 @@ func Ginlogr(logger logr.Logger, timeFormat string, utc, addToReqContext bool, w
 			for _, e := range c.Errors {
 				reqLogger.Error(e.Err, "Error")
 			}
-		} else {
-			reqLogger.Info(path,
-				"status", c.Writer.Status(),
-				"method", c.Request.Method,
-				"path", path,
-				"query", query,
-				"ip", c.ClientIP(),
-				"user-agent", c.Request.UserAgent(),
-				"time", end.Format(timeFormat),
-				"latency", latency,
-			)
 		}
+		reqLogger.Info(path,
+			"status", c.Writer.Status(),
+			"method", c.Request.Method,
+			"path", path,
+			"query", query,
+			"ip", c.ClientIP(),
+			"user-agent", c.Request.UserAgent(),
+			"time", end.Format(timeFormat),
+			"latency", latency,
+		)
 	}
 }
 
