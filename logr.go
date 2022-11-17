@@ -45,7 +45,7 @@ func Ginlogr(logger logr.Logger, timeFormat string, utc, addToReqContext bool, w
 		c.Next()
 
 		end := time.Now()
-		latency := end.Sub(start)
+		latency := end.Sub(start).Microseconds()
 		if utc {
 			end = end.UTC()
 		}
