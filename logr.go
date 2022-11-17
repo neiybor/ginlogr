@@ -45,7 +45,7 @@ func Ginlogr(logger logr.Logger, timeFormat string, utc, addToReqContext bool, w
 		c.Next()
 
 		end := time.Now()
-		latency := end.Sub(start)
+		latency := end.Sub(start).Microseconds()
 		if utc {
 			end = end.UTC()
 		}
@@ -65,6 +65,7 @@ func Ginlogr(logger logr.Logger, timeFormat string, utc, addToReqContext bool, w
 			"user-agent", c.Request.UserAgent(),
 			"time", end.Format(timeFormat),
 			"latency", latency,
+			"logger", "ginlogr",
 		)
 	}
 }
