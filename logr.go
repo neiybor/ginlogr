@@ -21,6 +21,22 @@ type stackTracer interface {
 	StackTrace() errors.StackTrace
 }
 
+type GinlogrConfig struct {
+	Logger          logr.Logger
+	TimeFormat      string
+	UTC             bool
+	AddToReqContext bool
+	WithHeaders     []string
+	ErrorInfo       func(error) []interface{}
+}
+
+type RecoveryWithLogrConfig struct {
+	Logger     logr.Logger
+	TimeFormat string
+	UTC        bool
+	Stack      bool
+}
+
 // Ginlogr returns a gin.HandlerFunc (middleware) that logs requests using github.com/go-logr/logr.
 //
 // Requests with errors are logged using logr.Error().
@@ -29,31 +45,35 @@ type stackTracer interface {
 // It receives:
 //  1. A time package format string (e.g. time.RFC3339).
 //  2. A boolean stating whether to use UTC time zone or local.
-func Ginlogr(logger logr.Logger, timeFormat string, utc, addToReqContext bool, withHeaders []string) gin.HandlerFunc {
+func Ginlogr(config GinlogrConfig) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		start := time.Now()
-		// some evil middlewares modify this values
+		// Some evil middlewares modify these values
 		path := c.Request.URL.Path
 		query := c.Request.URL.RawQuery
-		reqLogger := logger
-		for _, headerKey := range withHeaders {
+		reqLogger := config.Logger
+		for _, headerKey := range config.WithHeaders {
 			reqLogger = reqLogger.WithValues(headerKey, c.Writer.Header().Get(headerKey))
 		}
-		if addToReqContext {
+		if config.AddToReqContext {
 			c.Request = c.Request.Clone(logr.NewContext(c.Request.Context(), reqLogger))
 		}
 		c.Next()
 
 		end := time.Now()
 		latency := end.Sub(start).Microseconds()
-		if utc {
+		if config.UTC {
 			end = end.UTC()
 		}
 
 		if len(c.Errors) > 0 {
 			// Append error field if this is an erroneous request.
 			for _, e := range c.Errors {
-				reqLogger.Error(e.Err, "Error")
+				var keysAndValues []interface{}
+				if config.ErrorInfo != nil {
+					keysAndValues = config.ErrorInfo(e.Err)
+				}
+				reqLogger.Error(e.Err, "Error", keysAndValues...)
 			}
 		}
 		reqLogger.Info(path,
@@ -63,7 +83,7 @@ func Ginlogr(logger logr.Logger, timeFormat string, utc, addToReqContext bool, w
 			"query", query,
 			"ip", c.ClientIP(),
 			"user-agent", c.Request.UserAgent(),
-			"time", end.Format(timeFormat),
+			"time", end.Format(config.TimeFormat),
 			"latency", latency,
 			"logger", "ginlogr",
 		)
@@ -71,20 +91,20 @@ func Ginlogr(logger logr.Logger, timeFormat string, utc, addToReqContext bool, w
 }
 
 // RecoveryWithlogr returns a gin.HandlerFunc (middleware)
-// that recovers from any panics and logs requests using uber-go/logr.
+// that recovers from any panics and logs requests using github.com/go-logr/logr.
 // All errors are logged using logr.Error().
 // stack means whether output the stack info.
 // The stack info is easy to find where the error occurs but the stack info is too large.
-func RecoveryWithLogr(logger logr.Logger, timeFormat string, utc, stack bool) gin.HandlerFunc {
+func RecoveryWithLogr(config RecoveryWithLogrConfig) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		defer func() {
 			if err := recover(); err != nil {
 				time := time.Now()
-				if utc {
+				if config.UTC {
 					time = time.UTC()
 				}
 
-				reqLogger := logger
+				reqLogger := config.Logger
 				if lgr, err := logr.FromContext(c); err == nil {
 					reqLogger = lgr
 				}
@@ -111,14 +131,14 @@ func RecoveryWithLogr(logger logr.Logger, timeFormat string, utc, stack bool) gi
 				switch {
 				case brokenPipe:
 					reqLogger.Error(err.(*os.SyscallError), c.Request.URL.Path,
-						"time", time.Format(timeFormat),
+						"time", time.Format(config.TimeFormat),
 						"request", string(httpRequest),
 					)
 					// If the connection is dead, we can't write a status to it.
 					c.Error(e) // nolint: errcheck
 					c.Abort()
 					return
-				case stack:
+				case config.Stack:
 					var stackErr stackTracer
 					var stackTrace []string
 					if stackErr, ok = e.(stackTracer); ok {
@@ -131,13 +151,13 @@ func RecoveryWithLogr(logger logr.Logger, timeFormat string, utc, stack bool) gi
 					}
 
 					reqLogger.Error(e, "[Recovery from panic]",
-						"time", time.Format(timeFormat),
+						"time", time.Format(config.TimeFormat),
 						"request", string(httpRequest),
 						"stack", stackTrace,
 					)
 				default:
 					reqLogger.Error(e, "[Recovery from panic]",
-						"time", time.Format(timeFormat),
+						"time", time.Format(config.TimeFormat),
 						"request", string(httpRequest),
 					)
 				}
