@@ -3,6 +3,7 @@
 package ginlogr
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"net/http"
@@ -40,6 +41,7 @@ func Ginlogr(logger logr.Logger, timeFormat string, utc, addToReqContext bool, w
 			reqLogger = reqLogger.WithValues(headerKey, c.Writer.Header().Get(headerKey))
 		}
 		if addToReqContext {
+			*c = logr.NewContext(*c, reqLogger)
 			c.Request = c.Request.Clone(logr.NewContext(c.Request.Context(), reqLogger))
 		}
 		c.Next()
@@ -147,4 +149,46 @@ func RecoveryWithLogr(logger logr.Logger, timeFormat string, utc, stack bool) gi
 		}()
 		c.Next()
 	}
+}
+
+// Storing and retrieving Loggers with logr relies on using a context.Context, while Gin uses
+// gin.Context. We'll reimplement that functionality here
+
+// contextKey is how we find Loggers in a context.Context.
+const contextKey string = "__ginlogr__context__key"
+
+// FromContext returns a Logger from ctx or an error if no Logger is found.
+func FromContext(ctx *gin.Context) (logr.Logger, error) {
+	if v, ok := ctx.Value(contextKey).(logr.Logger); ok {
+		return v, nil
+	}
+
+	return logr.Logger{}, notFoundError{}
+}
+
+// notFoundError exists to carry an IsNotFound method.
+type notFoundError struct{}
+
+func (notFoundError) Error() string {
+	return "no logr.Logger was present"
+}
+
+func (notFoundError) IsNotFound() bool {
+	return true
+}
+
+// FromContextOrDiscard returns a Logger from ctx.  If no Logger is found, this
+// returns a Logger that discards all log messages.
+func FromContextOrDiscard(ctx context.Context) Logger {
+	if v, ok := ctx.Value(contextKey{}).(Logger); ok {
+		return v
+	}
+
+	return Discard()
+}
+
+// NewContext returns a new Context, derived from ctx, which carries the
+// provided Logger.
+func NewContext(ctx context.Context, logger Logger) context.Context {
+	return context.WithValue(ctx, contextKey{}, logger)
 }
