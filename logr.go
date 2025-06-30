@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gin-contrib/requestid"
 	"github.com/gin-gonic/gin"
 	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
@@ -142,7 +143,16 @@ func RecoveryWithLogr(logger logr.Logger, timeFormat string, utc, stack bool) gi
 					)
 				}
 
-				c.AbortWithStatus(http.StatusInternalServerError)
+				if id := requestid.Get(c); id != "" {
+					errorResponse := gin.H{
+						"error":      "Internal Server Error",
+						"request_id": id,
+					}
+					c.JSON(http.StatusInternalServerError, errorResponse)
+				} else {
+					c.AbortWithStatus(http.StatusInternalServerError)
+				}
+				panic(err)
 			}
 		}()
 		c.Next()
