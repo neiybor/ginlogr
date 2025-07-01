@@ -1,4 +1,4 @@
-module github.com/neiybor/ginlogr
+module github.com/neiybor/ginlogr/v2
 
 go 1.24
 
