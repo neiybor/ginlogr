@@ -131,13 +131,13 @@ func PanicLogr(logger logr.Logger, timeFormat string, utc, stack bool, requestId
 						stackTrace = strings.Split("\n", strings.ReplaceAll(string(debug.Stack()), "\t", ""))
 					}
 
-					reqLogger.Error(e, "[Recovery from panic]",
+					reqLogger.Error(e, "[Panic]",
 						"time", time.Format(timeFormat),
 						"request", string(httpRequest),
 						"stack", stackTrace,
 					)
 				default:
-					reqLogger.Error(e, "[Recovery from panic]",
+					reqLogger.Error(e, "[Panic]",
 						"time", time.Format(timeFormat),
 						"request", string(httpRequest),
 					)
