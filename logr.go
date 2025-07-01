@@ -70,11 +70,12 @@ func Ginlogr(logger logr.Logger, timeFormat string, utc, addToReqContext bool, w
 	}
 }
 
-// RecoveryWithlogr returns a gin.HandlerFunc (middleware)
-// that recovers from any panics and logs requests using uber-go/logr.
+// PanicLogr returns a gin.HandlerFunc (middleware)
+// that logs requests and panics using uber-go/logr.
 // All errors are logged using logr.Error().
 // stack means whether output the stack info.
 // The stack info is easy to find where the error occurs but the stack info is too large.
+// This does not consume the panic, the panic is passed up
 func PanicLogr(logger logr.Logger, timeFormat string, utc, stack bool, requestIdCtxKey string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		defer func() {
@@ -151,6 +152,7 @@ func PanicLogr(logger logr.Logger, timeFormat string, utc, stack bool, requestId
 				} else {
 					c.AbortWithStatus(http.StatusInternalServerError)
 				}
+
 				panic(err)
 			}
 		}()

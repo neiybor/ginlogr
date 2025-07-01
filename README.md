@@ -54,7 +54,7 @@ func main() {
     // Logs all panic to error log
     //   - RFC3389 with UTC time format.
     //   - stack means whether output the stack info.
-    r.Use(ginlogr.RecoveryWithLogr(logger, time.RFC3339, true, true))
+    r.Use(ginlogr.PanicLogr(logger, time.RFC3339, true, true, "x-request-id"))
 
     // Example ping request.
     r.GET("/ping", func(c *gin.Context) {
