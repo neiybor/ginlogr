@@ -12,7 +12,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gin-contrib/requestid"
 	"github.com/gin-gonic/gin"
 	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
@@ -76,7 +75,7 @@ func Ginlogr(logger logr.Logger, timeFormat string, utc, addToReqContext bool, w
 // All errors are logged using logr.Error().
 // stack means whether output the stack info.
 // The stack info is easy to find where the error occurs but the stack info is too large.
-func RecoveryWithLogr(logger logr.Logger, timeFormat string, utc, stack bool) gin.HandlerFunc {
+func PanicLogr(logger logr.Logger, timeFormat string, utc, stack bool, requestIdCtxKey string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		defer func() {
 			if err := recover(); err != nil {
@@ -143,7 +142,7 @@ func RecoveryWithLogr(logger logr.Logger, timeFormat string, utc, stack bool) gi
 					)
 				}
 
-				if id := requestid.Get(c); id != "" {
+				if id := c.Writer.Header().Get(requestIdCtxKey); requestIdCtxKey != "" && id != "" {
 					errorResponse := gin.H{
 						"error":      "Internal Server Error",
 						"request_id": id,
