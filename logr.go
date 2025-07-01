@@ -142,15 +142,16 @@ func PanicLogr(logger logr.Logger, timeFormat string, utc, stack bool, requestId
 						"request", string(httpRequest),
 					)
 				}
-
-				if id := c.Writer.Header().Get(requestIdCtxKey); requestIdCtxKey != "" && id != "" {
-					errorResponse := gin.H{
-						"error":      "Internal Server Error",
-						"request_id": id,
+				if !c.Writer.Written() {
+					if id := c.Writer.Header().Get(requestIdCtxKey); requestIdCtxKey != "" && id != "" {
+						errorResponse := gin.H{
+							"error":      "Internal Server Error",
+							"request_id": id,
+						}
+						c.JSON(http.StatusInternalServerError, errorResponse)
+					} else {
+						c.AbortWithStatus(http.StatusInternalServerError)
 					}
-					c.JSON(http.StatusInternalServerError, errorResponse)
-				} else {
-					c.AbortWithStatus(http.StatusInternalServerError)
 				}
 
 				panic(err)
